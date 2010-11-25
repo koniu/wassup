@@ -331,7 +331,8 @@ for rep = 1, reps do
                 (not filter) or
                 string.lower(ap.essid):find(string.lower(filter)) or 
                 string.lower(ap.bssid):find(string.lower(filter)) or 
-                string.lower(ap.enc):find(string.lower(filter))
+                string.lower(ap.enc):find(string.lower(filter)) or
+                string.lower(ap.manuf):find(string.lower(filter))
             then
                 state.filtered[ap.bssid] = ap
             end
