@@ -131,19 +131,20 @@ function sec2time(s)
 end
 --}}}
 --{{{ stats
+function line_layout(left_fmt, left_list, right_fmt, right_list)
+    local left = string.format(left_fmt, unpack(left_list))
+    local right = string.format(right_fmt, unpack(right_list))
+    local space = string.rep(" ", width - #left - #right)
+    return left .. space .. right
+end
 function stats()
     local now = os.date("%s")
-    local stats = string.format("showing: %s  scanned: %s  seen: %s", 
-        len(state.filtered),
-        len(state.results),
-        len(state.seen)
-    )
-    local elapsed = "elapsed " .. sec2time(now - start)
-    local out = string.format("%s%"..(width-#elapsed+3).."s\n%s %-6s%"..(width-#iface-7).."s",
-        name .. " " .. version, elapsed, iface, state.action, stats
-    )
+    local l1 = line_layout("%s %s", { name, version },
+                           "elapsed %s", { sec2time(now-start) })
+    local l2 = line_layout("%s %s", { iface, state.action },
+                           "showing %s  scanned: %s  seen: %s", { len(state.filtered), len(state.results), len(state.seen) })
     io.stdout:write("\27[0;0f\27[K")
-    io.stdout:write(out)
+    io.stdout:write(l1.."\n"..l2)
     io.stdout:write("\27[0;0f")
 end
 --}}}
