@@ -298,8 +298,10 @@ for rep = 1, reps do
     state.results = {}
     for i = 1, #res do
         local ap = parse(res[i], survey)
-        state.results[ap.bssid] = ap
-        state.seen[ap.bssid] = ap
+        if ap.bssid then
+            state.results[ap.bssid] = ap
+            state.seen[ap.bssid] = ap
+        end
     end
 --}}}
 --{{{ update internals
