@@ -414,4 +414,4 @@ for rep = 1, reps do
 --}}}    
 end
 --}}}
--- vim: foldmethod=marker:filetype=lua:expandtab:shiftwidth=4:tabstop=4:softtabstop=4:encoding=utf-8
+-- vim: foldmethod=marker:filetype=lua:expandtab:shiftwidth=4:tabstop=4:softtabstop=4
