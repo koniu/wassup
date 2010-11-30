@@ -39,7 +39,7 @@ columns = {
     gone    = { f = "%s", t=""  },
     tsf     = { f = "%14s ",    },
 }
-column_order = {"bssid", "ch", "essid", "sig", "snr", "noise", "enc", "manuf", "gone" }
+column_order = {"bssid", "ch", "essid", "sig", "snr", "noise", "enc", "gone" }
 
 --}}}
 --{{{ functions
