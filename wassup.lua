@@ -224,6 +224,7 @@ end
 --}}}
 --{{{ get_manuf
 function get_manuf(mac)
+    if not mac then return end
     if not readable(manuf) then return "" end
     str = read("grep -i ^"..mac:sub(1,8).." " .. manuf, "popen")
     return (str:sub(10,20)):match("[%w%p]*")
@@ -291,6 +292,7 @@ for rep = 1, reps do
     state.action = "scan"
     stats()
     local res = split(read("iw "..iface.." scan", "popen"), "\nBSS ")
+    if #res == 0 then sleep(1) end
     
     -- read iw survey (gives us noise levels)
     local survey = split(read("iw "..iface.." survey dump", "popen"), "Survey data")
