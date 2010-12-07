@@ -12,6 +12,8 @@ iface = "wlan0"
 delay = 0
 leave = 10
 manuf = "/etc/manuf"
+iw_bin = "/usr/sbin/iw"
+iwlist_bin = "/usr/sbin/iwlist"
 
 -- colors 
 colors = {
@@ -106,6 +108,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -i <iface>     interface to use [wlan0]\
  -d <delay>     delay between scan cycles [0]\
  -r <repeat>    number of scan cycles [0 = forever]\
+ -m <method>    scan method [iw or iwlist]\
 \
  -k <c1,c2,...> show columns <c1,c2,...>\
  -s <col>       sort by column [sig]\
@@ -150,9 +153,29 @@ end
 --}}}
 --{{{ parse
 function parse(res, survey)
-    local ap = { seen_ago = 0 }
+    -- get results by method
+    local ap = (survey and parse_iw(res, survey)) or parse_iwlist(res)
+    ap.seen_ago = 0
 
+    -- get manufacturer on first sighting
+    if state.seen[ap.bssid] then
+        ap.manuf = state.seen[ap.bssid].manuf
+    else
+        ap.manuf = get_manuf(ap.bssid)
+    end
+
+    -- calculate snr
+    if ap.noise and ap.sig then
+        ap.snr = -(ap.noise - ap.sig)
+    end
+
+    return ap
+end
+--}}}
+--{{{ parse_iw
+function parse_iw(res, survey)
     -- parse iw scan info
+    local ap = {}
     ap.bssid = res:match("(..:..:..:..:..:..) ")
     ap.essid = res:match("SSID: (.-)\n")
     ap.ch = tonumber(res:match("channel (.-)\n"))
@@ -182,16 +205,29 @@ function parse(res, survey)
         end
     end
 
-    -- get manufacturer on first sighting
-    if state.seen[ap.bssid] then
-        ap.manuf = state.seen[ap.bssid].manuf
-    else
-        ap.manuf = get_manuf(ap.bssid)
-    end
+    return ap
+end
+--}}}
+--{{{ parse_iwlist
+function parse_iwlist(res)
+    -- parse iwlist scan info
+    local ap = {}
+    ap.bssid=res:match("Address: (.-)\n")
+    ap.essid=res:match("ESSID:\"(.-)\"")
+    ap.ch=tonumber(res:match("Channel:(.-)\n"))
+    ap.sig=tonumber(res:match("Signal level[:=](.-) dBm"))
+    ap.noise=tonumber(res:match("Noise level[:=](.-) dBm"))
+    if ap.noise then noise_stats = true end
 
-    -- calculate snr
-    if ap.noise and ap.sig then
-        ap.snr = -(ap.noise - ap.sig)
+    -- parse encryption
+    if not res:find("Encryption key:on") then
+        ap.enc = "OPN"
+    elseif res:find("WPA2 Version 1") then
+        ap.enc = "WPA2"
+    elseif res:find("WPA Version 1") then
+        ap.enc = "WPA"
+    else
+        ap.enc = "WEP"
     end
     
     return ap
@@ -258,7 +294,7 @@ state = {
 }
 
 -- parse options
-opts = getopt( arg, "dfirslck" )
+opts = getopt( arg, "dfirslckm" )
 for k, v in pairs(opts) do
     if k == "h" then usage() end
     if k == "r" then reps = tonumber(v) end
@@ -268,6 +304,7 @@ for k, v in pairs(opts) do
     if k == "f" then filter = v end
     if k == "c" then channel = v end
     if k == "l" then leave = tonumber(v) end
+    if k == "m" then method = v end
     if k == "k" then 
         column_order = {}
         for _, col in ipairs(split(v, ",")) do
@@ -281,6 +318,7 @@ if reps == 0 then reps = 99999999 end
 -- get environment
 start = os.date("%s")
 width = os.getenv("COLUMNS") or 80
+method = method or (readable(iw_bin) and "iw") or "iwlist"
 
 -- clear screen
 cls(0,0)
@@ -291,11 +329,15 @@ for rep = 1, reps do
     -- read iw scan
     state.action = "scan"
     stats()
-    local res = split(read("iw "..iface.." scan", "popen"), "\nBSS ")
+    local res, survey
+    if method == "iw" then
+        res = split(read(iw_bin.." "..iface.." scan", "popen"), "\nBSS ")
+        survey = split(read(iw_bin.." "..iface.." survey dump", "popen"), "Survey data")
+    else
+        res = split(read(iwlist_bin.." "..iface.." scan", "popen"), "Cell")
+        table.remove(res, 1)
+    end
     if #res == 0 then sleep(1) end
-    
-    -- read iw survey (gives us noise levels)
-    local survey = split(read("iw "..iface.." survey dump", "popen"), "Survey data")
 
     -- parse iw results/survey outputs
     state.results = {}
