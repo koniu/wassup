@@ -373,9 +373,9 @@ local res, err = pcall(require, "iwinfo")
 if not method then
     if res then
         method = "iwinfo"
-    elseif iw_bin then
+    elseif #iw_bin > 0 then
         method = "iw"
-    elseif iwlist_bin then
+    elseif #iwlist_bin > 0 then
         method = "iwlist"
     else
         io.stderr:write("No scanning method available")
