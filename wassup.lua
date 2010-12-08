@@ -12,8 +12,6 @@ iface = "wlan0"
 delay = 0
 leave = 10
 manuf = "/etc/manuf"
-iw_bin = "/usr/sbin/iw"
-iwlist_bin = "/usr/sbin/iwlist"
 
 -- colors 
 colors = {
@@ -108,7 +106,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -i <iface>     interface to use [wlan0]\
  -d <delay>     delay between scan cycles [0]\
  -r <repeat>    number of scan cycles [0 = forever]\
- -m <method>    scan method [iw or iwlist]\
+ -m <method>    scan method [iw, iwinfo or iwlist]\
 \
  -k <c1,c2,...> show columns <c1,c2,...>\
  -s <col>       sort by column [sig]\
@@ -152,9 +150,9 @@ function stats()
 end
 --}}}
 --{{{ parse
-function parse(res, survey)
+function parse(method, res, survey)
     -- get results by method
-    local ap = (survey and parse_iw(res, survey)) or parse_iwlist(res)
+    local ap = parsers[method](res, survey)
     ap.seen_ago = 0
 
     -- get manufacturer on first sighting
@@ -173,7 +171,8 @@ function parse(res, survey)
 end
 --}}}
 --{{{ parse_iw
-function parse_iw(res, survey)
+parsers = {}
+parsers.iw = function(res, survey)
     -- parse iw scan info
     local ap = {}
     ap.bssid = res:match("(..:..:..:..:..:..) ")
@@ -209,7 +208,7 @@ function parse_iw(res, survey)
 end
 --}}}
 --{{{ parse_iwlist
-function parse_iwlist(res)
+parsers.iwlist = function(res)
     -- parse iwlist scan info
     local ap = {}
     ap.bssid=res:match("Address: (.-)\n")
@@ -230,6 +229,32 @@ function parse_iwlist(res)
         ap.enc = "WEP"
     end
     
+    return ap
+end
+--}}}
+--{{{ parse_iwinfo
+parsers.iwinfo = function(res)
+    -- parse iwinfo scan
+    local ap = {}
+    ap.bssid = res.bssid
+    ap.essid = res.ssid
+    ap.ch = res.channel
+    ap.sig = res.signal
+    noise_stats = false
+
+    -- parse encryption
+    if res.encryption.enabled then
+        if res.encryption.wep then
+            ap.enc = "WEP"
+        elseif res.encryption.wpa == 1 then
+            ap.enc = "WPA"
+        elseif res.encryption.wpa > 1 then
+            ap.enc = "WPA2"
+        end
+    else
+        ap.enc = "OPN"
+    end
+
     return ap
 end
 --}}}
@@ -282,6 +307,28 @@ function remove_item(t, item)
     return t
 end
 --}}}
+--{{{ chomp
+function chomp(str)
+    return str:sub(1,#str-1)
+end
+--}}}
+--{{{ scanners
+scanners = {}
+scanners.iw = function(iface)
+    local res = split(read(iw_bin.." "..iface.." scan", "popen"), "\nBSS ")
+    local survey = split(read(iw_bin.." "..iface.." survey dump", "popen"), "Survey data")
+    return res, survey
+end
+scanners.iwlist = function(iface)
+    local res = split(read(iwlist_bin.." "..iface.." scan", "popen"), "Cell")
+    table.remove(res, 1)
+    return res
+end
+scanners.iwinfo = function(iface)
+    local type = iwinfo.type(iface)
+    return iwinfo[type].scanlist(iface)
+end
+--}}}
 --}}}
 --{{{ init
 -- initialize data structure
@@ -318,7 +365,23 @@ if reps == 0 then reps = 99999999 end
 -- get environment
 start = os.date("%s")
 width = os.getenv("COLUMNS") or 80
-method = method or (readable(iw_bin) and "iw") or "iwlist"
+iw_bin = chomp(read("which iw", "popen"))
+iwlist_bin = chomp(read("which iwlist", "popen"))
+
+-- select scanning method
+local res, err = pcall(require, "iwinfo")
+if not method then
+    if res then
+        method = "iwinfo"
+    elseif iw_bin then
+        method = "iw"
+    elseif iwlist_bin then
+        method = "iwlist"
+    else
+        io.stderr:write("No scanning method available")
+        os.exit(1)
+    end
+end
 
 -- clear screen
 cls(0,0)
@@ -329,20 +392,13 @@ for rep = 1, reps do
     -- read iw scan
     state.action = "scan"
     stats()
-    local res, survey
-    if method == "iw" then
-        res = split(read(iw_bin.." "..iface.." scan", "popen"), "\nBSS ")
-        survey = split(read(iw_bin.." "..iface.." survey dump", "popen"), "Survey data")
-    else
-        res = split(read(iwlist_bin.." "..iface.." scan", "popen"), "Cell")
-        table.remove(res, 1)
-    end
+    local res, survey = scanners[method](iface)
     if #res == 0 then sleep(1) end
 
     -- parse iw results/survey outputs
     state.results = {}
     for i = 1, #res do
-        local ap = parse(res[i], survey)
+        local ap = parse(method, res[i], survey)
         if ap.bssid then
             state.results[ap.bssid] = ap
             state.seen[ap.bssid] = ap

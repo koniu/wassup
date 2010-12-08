@@ -6,7 +6,7 @@ copyleft (¿) koniu <gkusnierz@gmail.com>
 wassup.lua is a script performing a wireless AP scan and presenting it
 in a readable text format.
 
-It depends on lua(1) and iw(8) or iwlist(8).
+It depends on lua(1) and either iw(8), iwlist(8) or libiwinfo.
 It's intended to run as root which is needed for active scanning.
 
 Originally written on and for use with OpenWrt, but should run on any
@@ -20,7 +20,7 @@ Usage: wassup.lua <options>
  -i <iface>     interface to use [wlan0]
  -d <delay>     delay between scan cycles [0]
  -r <repeat>    number of scan cycles [0 = forever]
- -m <method>    scan method [iw or iwlist]
+ -m <method>    scan method [iwinfo, iw or iwlist]
 
  -k <c1,c2,...> show columns <c1,c2,...>
  -s <col>       sort by column [sig]
