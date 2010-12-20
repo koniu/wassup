@@ -6,7 +6,8 @@ name = "wassup.lua"
 version = "v0"
 
 -- defaults
-reps = 999999999
+inf = 999999999
+reps = inf
 key = "sig"
 iface = "wlan0"
 delay = 0
@@ -141,7 +142,7 @@ end
 function stats()
     local now = os.date("%s")
     local l1 = line_layout("%s %s", { name, version },
-                           "elapsed %s", { sec2time(now-start) })
+                           "iter %s%s, elapsed %s", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start) })
     local l2 = line_layout("%s %s", { iface, state.action },
                            "showing %s  scanned: %s  seen: %s", { len(state.filtered), len(state.results), len(state.seen) })
     io.stdout:write("\27[0;0f\27[K")
@@ -338,6 +339,7 @@ state = {
     results = {},
     filtered = {},
     buffer = {},
+    iter = 0,
 }
 
 -- parse options
@@ -387,6 +389,7 @@ cls(0,0)
 --}}}
 --{{{ main loop
 for rep = 1, reps do
+    state.iter = rep
 --{{{ scan and parse
     -- read iw scan
     state.action = "scan"
