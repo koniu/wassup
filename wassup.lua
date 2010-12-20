@@ -6,11 +6,11 @@ name = "wassup.lua"
 version = "v0"
 
 -- defaults
-reps = 0
+reps = 999999999
 key = "sig"
 iface = "wlan0"
 delay = 0
-leave = 10
+leave = reps
 manuf = "/etc/manuf"
 
 -- colors 
@@ -112,7 +112,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -s <col>       sort by column [sig]\
  -f <filter>    filter by string [none]\
  -c <channel>   show only channel <num> [none]\
- -l <leave>     show out-of-range APs for <leave> of cycles [10]\
+ -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]\
 \
  -h             help yourself\
 "
@@ -350,7 +350,7 @@ for k, v in pairs(opts) do
     if k == "d" then delay = tonumber(v) end
     if k == "f" then filter = v end
     if k == "c" then channel = v end
-    if k == "l" then leave = tonumber(v) end
+    if k == "l" then leave = tonumber(v) or reps end
     if k == "m" then method = v end
     if k == "k" then 
         column_order = {}
@@ -360,7 +360,6 @@ for k, v in pairs(opts) do
     end
             
 end
-if reps == 0 then reps = 99999999 end
 
 -- get environment
 start = os.date("%s")
