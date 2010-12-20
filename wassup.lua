@@ -144,7 +144,7 @@ function stats()
     local l1 = line_layout("%s %s", { name, version },
                            "iter %s%s, elapsed %s", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start) })
     local l2 = line_layout("%s %s", { iface, state.action },
-                           "showing %s  scanned: %s  seen: %s", { len(state.filtered), len(state.results), len(state.seen) })
+                           "showing: %s  scanned: %s  seen: %s", { len(state.filtered), len(state.results), len(state.seen) })
     io.stdout:write("\27[0;0f\27[K")
     io.stdout:write(l1.."\n"..l2)
     io.stdout:write("\27[0;0f")
