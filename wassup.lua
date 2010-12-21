@@ -29,18 +29,22 @@ colors = {
 
 -- columns
 columns = {
-    bssid   = { f = "%-17s "    },
-    ch      = { f = "%2s "      },
-    essid   = { f = "%-20s  "   },
-    sig     = { f = "%3s  "     },
-    snr     = { f = "%3s "      },
-    noise   = { f = "%5s  "     },
-    enc     = { f = "%-4s "     },
-    manuf   = { f = "%-10s ",   },
-    gone    = { f = "%s", t=""  },
-    tsf     = { f = "%14s ",    },
+    bssid   = { f = "%-17s "            },
+    ch      = { f = "%2s "              },
+    s       = { f = "%1s ",     t = ""  },
+    essid   = { f = "%-20s  "           },
+    sig     = { f = "%3s  ",    r = 1   },
+    min     = { f = " %3s ",    r = 1   },
+    avg     = { f = "%3s ",     r = 1   },
+    max     = { f = "%3s  ",    r = 1   },
+    loss    = { f = "%4s  "             },
+    snr     = { f = "%3s ",     r = 1   },
+    noise   = { f = "%5s  "             },
+    enc     = { f = "%-4s "             },
+    manuf   = { f = "%-10s "            },
+    tsf     = { f = "%14s "             },
 }
-column_order = {"bssid", "ch", "essid", "sig", "snr", "noise", "enc", "gone" }
+column_order = {"bssid", "ch", "s", "essid", "sig", "min", "avg", "max", "loss", "enc"}
 
 --}}}
 --{{{ functions
@@ -154,14 +158,6 @@ end
 function parse(method, res, survey)
     -- get results by method
     local ap = parsers[method](res, survey)
-    ap.seen_ago = 0
-
-    -- get manufacturer on first sighting
-    if state.seen[ap.bssid] then
-        ap.manuf = state.seen[ap.bssid].manuf
-    else
-        ap.manuf = get_manuf(ap.bssid)
-    end
 
     -- calculate snr
     if ap.noise and ap.sig then
@@ -330,6 +326,44 @@ scanners.iwinfo = function(iface)
     return iwinfo[type].scanlist(iface)
 end
 --}}}
+--{{{ update_gone
+function update_gone(ap)
+    ap.s = "g"
+    ap.sig = nil
+    ap.snr = nil
+    ap.noise = nil
+    ap.lost = (ap.lost or 0) + 1
+    ap.loss = math.floor((ap.lost*100) / state.iter) .. "%"
+    return ap
+end
+--}}}
+--{{{ update_result
+function update_result(ap)
+    local result = state.results[ap.bssid]
+    local record = state.seen[ap.bssid]
+    -- update status
+    if not record then
+        ap.s = "n"
+        ap.manuf = get_manuf(ap.bssid)
+        record = {}
+    elseif record.s == "g" then ap.s = "r"
+    elseif record.sig > result.sig then ap.s = "-"
+    elseif record.sig < result.sig then ap.s = "+"
+    elseif record.sig == result.sig then ap.s = "="
+    end
+    -- update stats
+    ap.manuf = record.manuf or ap.manuf or ""
+    ap.first_seen = record.first_seen or state.iter
+    ap.last_seen = state.iter
+    ap.lost = record.lost or 0
+    ap.loss = math.floor((ap.lost*100) / state.iter) .. "%" or "0%"
+    ap.sum = (record.sum or 0) + result.sig
+    ap.avg = math.floor(ap.sum / (state.iter - ap.lost - ap.first_seen + 1))
+    ap.max = math.max((record.max or -100), result.sig)
+    ap.min = math.min((record.min or 0), result.sig)
+    return ap
+end
+--}}}
 --}}}
 --{{{ init
 -- initialize data structure
@@ -338,7 +372,6 @@ state = {
     seen = {},
     results = {},
     filtered = {},
-    buffer = {},
     iter = 0,
 }
 
@@ -388,14 +421,13 @@ end
 cls(0,0)
 --}}}
 --{{{ main loop
-for rep = 1, reps do
-    state.iter = rep
+while state.iter < reps do
 --{{{ scan and parse
     -- read iw scan
     state.action = "scan"
     stats()
     local res, survey = scanners[method](iface)
-    if #res == 0 then sleep(1) end
+    if #res == 0 then sleep(1) else state.iter = state.iter + 1 end
 
     -- parse iw results/survey outputs
     state.results = {}
@@ -403,44 +435,27 @@ for rep = 1, reps do
         local ap = parse(method, res[i], survey)
         if ap.bssid then
             state.results[ap.bssid] = ap
-            state.seen[ap.bssid] = ap
+            state.seen[ap.bssid] = update_result(ap)
         end
     end
 --}}}
 --{{{ update internals
-    -- update buffer table with scan results
-    for _, ap in pairs(state.results) do
-        state.buffer[ap.bssid] = ap
-    end
-
-    -- update buffer table and remove APs that disappeared
-    for _, ap in pairs(state.buffer) do
-        if not state.results[ap.bssid] then
-            if ap.seen_ago >= leave then
-                state.buffer[ap.bssid] = nil
-            else
-                ap.seen_ago = ap.seen_ago + 1
-                ap.gone = string.rep(".", ap.seen_ago)
-                ap.sig = nil
-                ap.snr = nil
-                ap.noise = nil
-            end
-        end
-    end
-    
-    -- filter buffer for display 
     state.filtered = {}
-    for _, ap in pairs(state.buffer) do
-        if (not channel) or (channel and ap.ch == tonumber(channel)) then
-            if 
-                (not filter) or
-                string.lower(ap.essid):find(string.lower(filter)) or 
-                string.lower(ap.bssid):find(string.lower(filter)) or 
-                string.lower(ap.enc):find(string.lower(filter)) or
-                string.lower(ap.manuf):find(string.lower(filter))
-            then
-                state.filtered[ap.bssid] = ap
-            end
+    for _, ap in pairs(state.seen) do
+        -- update stats for gone APs
+        if not state.results[ap.bssid] then
+            ap = update_gone(ap)
+        end
+        -- filter APs for display
+        if ((not channel) or (channel and ap.ch == tonumber(channel))) and
+            state.iter - ap.last_seen < leave and
+            ((not filter) or
+            string.lower(ap.essid):find(string.lower(filter)) or
+            string.lower(ap.bssid):find(string.lower(filter)) or
+            string.lower(ap.enc):find(string.lower(filter)) or
+            string.lower(ap.manuf):find(string.lower(filter)))
+        then
+            state.filtered[ap.bssid] = ap
         end
     end
 --}}}
@@ -449,7 +464,7 @@ for rep = 1, reps do
     for _, ap in pairs(state.filtered) do table.insert(list, ap) end
     
     local sortf
-    if key == "snr" or key == "sig" or key == "noise" then
+    if columns[key].r then
         sortf = function(a,b) return (a[key] or -100) > (b[key] or -100) end
     else
         sortf = function(a,b) return a[key] < b[key] end
@@ -489,7 +504,7 @@ for rep = 1, reps do
 
         -- set row color
         local color
-        if r.gone then
+        if r.s == "g" then
             color = colors.gone
         else 
             color = colors.enc[string.lower(r.enc)]
