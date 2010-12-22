@@ -199,7 +199,6 @@ parsers.iw = function(res, survey)
 
     -- parse iw survey info
     for _, chan in ipairs(survey) do
-        noise_stats = true
         if chan:match("frequency:.*" .. tostring(ap.freq) .. " MHz") then
             ap.noise = chan:match("noise:.-(...) dBm")
             break
@@ -218,7 +217,6 @@ parsers.iwlist = function(res)
     ap.ch=tonumber(res:match("Channel:(.-)\n"))
     ap.sig=tonumber(res:match("Signal level[:=](.-) dBm"))
     ap.noise=tonumber(res:match("Noise level[:=](.-) dBm"))
-    if ap.noise then noise_stats = true end
 
     -- parse encryption
     if not res:find("Encryption key:on") then
@@ -242,7 +240,6 @@ parsers.iwinfo = function(res)
     ap.essid = res.ssid or ""
     ap.ch = res.channel
     ap.sig = res.signal
-    noise_stats = false
 
     -- parse encryption
     if res.encryption.enabled then
@@ -297,16 +294,6 @@ end
 function cls(x,y)
     io.stdout:write("\27[2J")
     io.stdout:write("\27["..x..";"..y.."f")
-end
---}}}
---{{{ remove_item
-function remove_item(t, item)
-    for i, entry in pairs(t) do
-        if item == entry then
-            table.remove(t, i)
-        end
-    end
-    return t
 end
 --}}}
 --{{{ chomp
@@ -521,18 +508,6 @@ while state.iter < reps do
     cls(0,0)
     stats()
     io.stdout:write("\27[4;0f\27[K")
-
-    -- get column formats
-    if (not cols) then
-        cols = {}
-        if not noise_stats then
-            remove_item(column_order, "noise")
-            remove_item(column_order, "snr")
-        end
-        if not readable(manuf) then
-            remove_item(column_order, "manuf")
-        end
-    end
 
     -- print table headers
     local output = ""
