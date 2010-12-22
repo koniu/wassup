@@ -23,11 +23,11 @@ Usage: wassup.lua <options>
  -r <repeat>    number of scan cycles [0 = forever]
  -m <method>    scan method [iw, iwinfo or iwlist]
 
- -k <c1,c2,...> show columns <c1,c2,...>
- -s <col>       sort by column [sig]
+ -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]
+ -s <c1,c2,...> sort by columns [sig,essid]
  -f <filter>    filter by string [none]
  -c <channel>   show only channel <num> [none]
  -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]
+ -g <col>       highlight rows by field [enc]
 
  -h             help yourself
-
