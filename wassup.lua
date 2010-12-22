@@ -239,7 +239,7 @@ parsers.iwinfo = function(res)
     -- parse iwinfo scan
     local ap = {}
     ap.bssid = res.bssid
-    ap.essid = res.ssid
+    ap.essid = res.ssid or ""
     ap.ch = res.channel
     ap.sig = res.signal
     noise_stats = false
