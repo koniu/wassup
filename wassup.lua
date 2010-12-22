@@ -326,42 +326,55 @@ scanners.iwinfo = function(iface)
     return iwinfo[type].scanlist(iface)
 end
 --}}}
---{{{ update_gone
-function update_gone(ap)
-    ap.s = "g"
-    ap.sig = nil
-    ap.snr = nil
-    ap.noise = nil
-    ap.lost = (ap.lost or 0) + 1
-    ap.loss = math.floor((ap.lost*100) / state.iter) .. "%"
-    return ap
-end
---}}}
---{{{ update_result
-function update_result(ap)
-    local result = state.results[ap.bssid]
-    local record = state.seen[ap.bssid]
-    -- update status
-    if not record then
+--{{{ update_ap
+function update_ap(bssid)
+    local result = state.results[bssid]
+    local record = state.seen[bssid]
+    local ap = result or record
+    -- first seen
+    if not record and result then
         ap.s = "n"
-        ap.manuf = get_manuf(ap.bssid)
-        record = {}
-    elseif record.s == "g" then ap.s = "r"
-    elseif record.sig > result.sig then ap.s = "-"
-    elseif record.sig < result.sig then ap.s = "+"
-    elseif record.sig == result.sig then ap.s = "="
+        ap.seen = 1
+        ap.sum = result.sig
+        ap.first_seen = state.iter
+        ap.last_seen = state.iter
+        ap.manuf = get_manuf(bssid) or ""
+        state.seen[bssid] = {}
+    end
+    -- gone
+    if record and not result then
+        ap.s = "g"
+        ap.sig = false
+        ap.snr = false
+        ap.noise = false
     end
     -- update stats
-    ap.manuf = record.manuf or ap.manuf or ""
-    ap.first_seen = record.first_seen or state.iter
-    ap.last_seen = state.iter
-    ap.lost = record.lost or 0
-    ap.loss = math.floor((ap.lost*100) / state.iter) .. "%" or "0%"
-    ap.sum = (record.sum or 0) + result.sig
-    ap.avg = math.floor(ap.sum / (state.iter - ap.lost - ap.first_seen + 1))
-    ap.max = math.max((record.max or -100), result.sig)
-    ap.min = math.min((record.min or 0), result.sig)
-    return ap
+    if result then
+        if record then
+            if record.s == "g" then ap.s = "r"
+            elseif record.sig > result.sig then ap.s = "-"
+            elseif record.sig < result.sig then ap.s = "+"
+            elseif record.sig == result.sig then ap.s = "="
+            end
+        else
+            record = {}
+        end
+        ap.last_seen = state.iter
+        ap.seen = (record.seen or 0) + 1
+        ap.sum = (record.sum or 0 ) + result.sig
+        ap.avg = math.floor(ap.sum / ap.seen)
+        ap.max = math.max((record.max or -100), result.sig)
+        ap.min = math.min((record.min or 0), result.sig)
+    end
+    if record then
+        local total = state.iter - (ap.first_seen or record.first_seen) + 1
+        ap.loss = math.floor((total - ap.seen) * 100 / total) .. "%"
+    end
+
+    -- update seen table
+    for k, v in pairs(ap) do
+        state.seen[bssid][k] = v
+    end
 end
 --}}}
 --}}}
@@ -435,17 +448,18 @@ while state.iter < reps do
         local ap = parse(method, res[i], survey)
         if ap.bssid then
             state.results[ap.bssid] = ap
-            state.seen[ap.bssid] = update_result(ap)
+            update_ap(ap.bssid)
         end
     end
 --}}}
---{{{ update internals
+--{{{ update gone
+    for _, ap in pairs(state.seen) do
+        if not state.results[ap.bssid] then update_ap(ap.bssid) end
+    end
+--}}}
+--{{{ filter for display
     state.filtered = {}
     for _, ap in pairs(state.seen) do
-        -- update stats for gone APs
-        if not state.results[ap.bssid] then
-            ap = update_gone(ap)
-        end
         -- filter APs for display
         if ((not channel) or (channel and ap.ch == tonumber(channel))) and
             state.iter - ap.last_seen < leave and
