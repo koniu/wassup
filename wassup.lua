@@ -8,7 +8,7 @@ version = "v0"
 -- defaults
 inf = 999999999
 reps = inf
-key = "sig"
+keys = { "sig", "essid" }
 iface = "wlan0"
 delay = 0
 leave = reps
@@ -115,8 +115,8 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -r <repeat>    number of scan cycles [0 = forever]\
  -m <method>    scan method [iw, iwinfo or iwlist]\
 \
- -k <c1,c2,...> show columns <c1,c2,...>\
- -s <col>       sort by column [sig]\
+ -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]\
+ -s <c1,c2,...> sort by columns [sig,essid]\
  -f <filter>    filter by string [none]\
  -c <channel>   show only channel <num> [none]\
  -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]\
@@ -394,6 +394,20 @@ function update_ap(bssid)
     end
 end
 --}}}
+--{{{ sortf
+function sortf(a,b)
+    for i, key in ipairs(keys) do
+        local v
+        if a[key] ~= b[key] then
+            if columns[key].r then
+                return (a[key] or -100) > (b[key] or -100)
+            else
+                return (a[key] or -100) < (b[key] or -100)
+            end
+        end
+    end
+end
+--}}}
 --}}}
 --{{{ init
 -- initialize data structure
@@ -410,7 +424,7 @@ opts = getopt( arg, "dfirslckmg" )
 for k, v in pairs(opts) do
     if k == "h" then usage() end
     if k == "r" then reps = tonumber(v) end
-    if k == "s" then key = v end
+    if k == "s" then keys = split(v,",") end
     if k == "i" then iface = v end
     if k == "d" then delay = tonumber(v) end
     if k == "f" then filter = v end
@@ -488,13 +502,6 @@ while state.iter < reps do
 --{{{ prepare and sort list for display
     local list = {}
     for _, ap in pairs(state.filtered) do table.insert(list, ap) end
-    
-    local sortf
-    if columns[key].r then
-        sortf = function(a,b) return (a[key] or -100) > (b[key] or -100) end
-    else
-        sortf = function(a,b) return (a[key] or -100) < (b[key] or -100) end
-    end
     table.sort(list, sortf)
 --}}}
 --{{{ output
@@ -520,7 +527,10 @@ while state.iter < reps do
     local color
     for i, cname in ipairs(column_order) do
         local c = columns[cname]
-        if cname == key then color = colors.sort else color = colors.def end
+        local color = colors.def
+        for _, key in ipairs(keys) do
+            if key == cname then color = colors.sort end
+        end
         output = output .. color .. string.format(c.f, c.t or cname) .. colors.def
     end
     io.stdout:write(output .. "\n\n")
