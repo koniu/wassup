@@ -21,11 +21,12 @@ colors = {
     gone        = "\27[0;34m",
     sort        = "\27[1;37m",
     highlight = {
-        s   = { ["n"] = "\27[1;37m", ["g"] = "\27[0;34m", ["r"] = "\27[0;33m",
-                ["+"] = "\27[1;32m", ["="] = "", ["-"] = "\27[1;31m" },
+        s   = { ["n"] = "\27[1;37m", ["g"] = "\27[0;34m", ["r"] = "\27[0;35m",
+                ["+"] = "\27[1;32m", ["="] = "\27[0;0m", ["-"] = "\27[1;31m" },
         enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA2"] = "\27[0;0m", ["WPA$"] = "\27[0;0m" },
     },
 }
+colors.highlight.graph = colors.highlight.s
 
 -- columns
 columns = {
@@ -43,6 +44,7 @@ columns = {
     enc     = { f = "%-4s "             },
     manuf   = { f = "%-10s "            },
     tsf     = { f = "%14s "             },
+    graph   = { f = "%-25s "            },
 }
 column_order = {"bssid", "ch", "s", "essid", "sig", "min", "avg", "max", "loss", "enc"}
 
@@ -327,6 +329,18 @@ scanners.iwinfo = function(iface)
     return iwinfo[type].scanlist(iface)
 end
 --}}}
+--{{{ column_len
+function column_len(col)
+    return tonumber(col.f:match("%%%-?(%d-)s")) or 100
+end
+--}}}
+--{{{ update_graph
+function update_graph(g, s)
+    local len = column_len(columns.graph)
+    if #g >= len then g = g:sub(2,len) end
+    return g .. s
+end
+--}}}
 --{{{ update_ap
 function update_ap(bssid)
     local result = state.results[bssid]
@@ -335,6 +349,7 @@ function update_ap(bssid)
     -- first seen
     if not record and result then
         ap.s = "n"
+        ap.graph = string.rep(" ", column_len(columns.graph))
         ap.seen = 1
         ap.sum = result.sig
         ap.first_seen = state.iter
@@ -370,6 +385,7 @@ function update_ap(bssid)
     if record then
         local total = state.iter - (ap.first_seen or record.first_seen) + 1
         ap.loss = math.floor((total - ap.seen) * 100 / total) .. "%"
+        ap.graph = update_graph(record.graph or ap.graph, ap.s)
     end
 
     -- update seen table
@@ -529,7 +545,7 @@ while state.iter < reps do
         local output = color
         for i, cname in ipairs(column_order) do
             local c = columns[cname]
-            local value = tostring(r[cname] or ""):sub(1, tonumber(c.f:match("%%%-?(%d-)s")) or 100)
+            local value = tostring(r[cname] or ""):sub(1, column_len(c))
             local hcolors = colors.highlight[cname] or {}
             for pattern, hcolor in pairs(hcolors) do
                 value = value:gsub("("..pattern..")", hcolor.."%1"..color)
