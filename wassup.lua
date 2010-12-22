@@ -481,7 +481,7 @@ while state.iter < reps do
     if columns[key].r then
         sortf = function(a,b) return (a[key] or -100) > (b[key] or -100) end
     else
-        sortf = function(a,b) return a[key] < b[key] end
+        sortf = function(a,b) return (a[key] or -100) < (b[key] or -100) end
     end
     table.sort(list, sortf)
 --}}}
