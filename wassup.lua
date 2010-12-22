@@ -16,14 +16,19 @@ manuf = "/etc/manuf"
 
 -- colors 
 colors = {
-    def         = "\27[0m",
-    gone        = "\27[34m",
+    def         = "\27[0;0m",
+    gone        = "\27[0;34m",
     sort        = "\27[1;37m",
     enc = {
-        wep     ="\27[31m",
-        opn     ="\27[32m",
-        wpa     ="",
-        wpa2    ="",
+        wep     = "\27[0;31m",
+        opn     = "\27[0;32m",
+        wpa     = "\27[0;0m",
+        wpa2    = "\27[0;0m",
+    },
+    highlight = {
+        s   = { ["n"] = "\27[1;37m", ["g"] = "\27[0;34m", ["r"] = "\27[0;33m",
+                ["+"] = "\27[1;32m", ["="] = "", ["-"] = "\27[1;31m" },
+        enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA2"] = "\27[0;0m", ["WPA"] = "\27[0;0m" },
     },
 }
 
@@ -528,7 +533,12 @@ while state.iter < reps do
         local output = color
         for i, cname in ipairs(column_order) do
             local c = columns[cname]
-            output = output .. string.format(c.f, tostring(r[cname] or ""):sub(1, tonumber(c.f:match("%%%-?(%d-)s")) or 100))
+            local value = tostring(r[cname] or ""):sub(1, tonumber(c.f:match("%%%-?(%d-)s")) or 100)
+            local hcolors = colors.highlight[cname] or {}
+            for pattern, hcolor in pairs(hcolors) do
+                value = value:gsub("("..pattern..")", hcolor.."%1"..color)
+            end
+            output = output .. string.format(c.f, value)
         end
         output = output .. colors.def .. "\n"
 
