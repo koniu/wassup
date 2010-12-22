@@ -13,6 +13,7 @@ iface = "wlan0"
 delay = 0
 leave = reps
 manuf = "/etc/manuf"
+obscure = false
 row_highlight_field = "enc"
 
 -- colors 
@@ -121,6 +122,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -c <channel>   show only channel <num> [none]\
  -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]\
  -g <col>       highlight rows by field [enc]\
+ -o             obfuscate bssid and essid columns\
 \
  -h             help yourself\
 "
@@ -408,6 +410,15 @@ function sortf(a,b)
     end
 end
 --}}}
+--{{{ obfuscate
+function obfuscate(ap)
+    if not obscure then return ap end
+    local obf_ap = {}; for k,v in pairs(ap) do obf_ap[k] = v end
+    obf_ap.bssid = ap.bssid:gsub("%w%w:%w%w:%w%w$","xx:xx:xx")
+    obf_ap.essid = string.rep('x', #(ap.essid or ""))
+    return obf_ap
+end
+--}}}
 --}}}
 --{{{ init
 -- initialize data structure
@@ -433,6 +444,7 @@ for k, v in pairs(opts) do
     if k == "m" then method = v end
     if k == "g" then row_highlight_field = v end
     if k == "k" then column_order = split(v,",") end
+    if k == "o" then obscure = true end
 end
 
 -- get environment
@@ -501,7 +513,7 @@ while state.iter < reps do
 --}}}
 --{{{ prepare and sort list for display
     local list = {}
-    for _, ap in pairs(state.filtered) do table.insert(list, ap) end
+    for _, ap in pairs(state.filtered) do table.insert(list, obfuscate(ap)) end
     table.sort(list, sortf)
 --}}}
 --{{{ output
