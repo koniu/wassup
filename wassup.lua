@@ -418,13 +418,7 @@ for k, v in pairs(opts) do
     if k == "l" then leave = tonumber(v) or reps end
     if k == "m" then method = v end
     if k == "g" then row_highlight_field = v end
-    if k == "k" then 
-        column_order = {}
-        for _, col in ipairs(split(v, ",")) do
-            table.insert(column_order, col)
-        end
-    end
-            
+    if k == "k" then column_order = split(v,",") end
 end
 
 -- get environment
