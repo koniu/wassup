@@ -13,22 +13,17 @@ iface = "wlan0"
 delay = 0
 leave = reps
 manuf = "/etc/manuf"
+row_highlight_field = "enc"
 
 -- colors 
 colors = {
     def         = "\27[0;0m",
     gone        = "\27[0;34m",
     sort        = "\27[1;37m",
-    enc = {
-        wep     = "\27[0;31m",
-        opn     = "\27[0;32m",
-        wpa     = "\27[0;0m",
-        wpa2    = "\27[0;0m",
-    },
     highlight = {
         s   = { ["n"] = "\27[1;37m", ["g"] = "\27[0;34m", ["r"] = "\27[0;33m",
                 ["+"] = "\27[1;32m", ["="] = "", ["-"] = "\27[1;31m" },
-        enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA2"] = "\27[0;0m", ["WPA"] = "\27[0;0m" },
+        enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA2"] = "\27[0;0m", ["WPA$"] = "\27[0;0m" },
     },
 }
 
@@ -123,6 +118,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -f <filter>    filter by string [none]\
  -c <channel>   show only channel <num> [none]\
  -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]\
+ -g <col>       highlight rows by field [enc]\
 \
  -h             help yourself\
 "
@@ -394,7 +390,7 @@ state = {
 }
 
 -- parse options
-opts = getopt( arg, "dfirslckm" )
+opts = getopt( arg, "dfirslckmg" )
 for k, v in pairs(opts) do
     if k == "h" then usage() end
     if k == "r" then reps = tonumber(v) end
@@ -405,6 +401,7 @@ for k, v in pairs(opts) do
     if k == "c" then channel = v end
     if k == "l" then leave = tonumber(v) or reps end
     if k == "m" then method = v end
+    if k == "g" then row_highlight_field = v end
     if k == "k" then 
         column_order = {}
         for _, col in ipairs(split(v, ",")) do
@@ -522,11 +519,10 @@ while state.iter < reps do
     for i, r in ipairs(list) do
 
         -- set row color
-        local color
-        if r.s == "g" then
-            color = colors.gone
-        else 
-            color = colors.enc[string.lower(r.enc)]
+        local color = colors.def
+        local hcolors = colors.highlight[row_highlight_field] or {}
+        for pattern, hcolor in pairs(hcolors) do
+            if r[row_highlight_field]:match(pattern) then color = hcolor end
         end
 
         -- format row
