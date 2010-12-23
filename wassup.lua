@@ -134,12 +134,13 @@ function usage()
 end
 --}}}
 --{{{ sec2time
-function sec2time(s)
-    local hh, mm, ss
-    hh = string.format("%02.f", math.floor(s/3600));
-    mm = string.format("%02.f", math.floor(s/60 - (hh*60)));
-    ss = string.format("%02.f", math.floor(s - hh*3600 - mm*60));
-    return string.format("%s:%s:%s", hh, mm, ss)
+function sec2time(s, fmt)
+    local dd, hh, mm, ss
+    dd = math.floor(s / (3600*24))
+    hh = math.floor((s - dd*24*3600) / 3600)
+    mm = math.floor((s - dd*24*3600 - hh*3600) / 60)
+    ss = math.floor((s - dd*24*3600 - hh*3600 - mm*60))
+    return string.format(fmt, dd, hh, mm, ss)
 end
 --}}}
 --{{{ stats
@@ -152,7 +153,7 @@ end
 function stats()
     local now = os.date("%s")
     local l1 = line_layout("%s %s", { name, version },
-                           "iter %s%s, elapsed %s", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start) })
+                           "iter %s%s, elapsed %s", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start, "%dd %02d:%02d:%02d") })
     local l2 = line_layout("%s %s", { iface, state.action },
                            "showing: %s  scanned: %s  seen: %s", { len(state.filtered), len(state.results), len(state.seen) })
     io.stdout:write("\27[0;0f\27[K")
@@ -183,7 +184,7 @@ parsers.iw = function(res, survey)
     ap.ch = tonumber(res:match("channel (.-)\n"))
     ap.sig = tonumber(res:match("signal: (.-) dBm"))
     ap.freq = tonumber(res:match("freq: (.-)\n"))
-    ap.tsf = res:match("TSF:.- usec %((.-)%)\n")
+    ap.tsf = sec2time(tonumber(res:match("TSF: (%d-) usec"))/(1000*1000),"%3dd %02d:%02d:%02d")
 
     -- parse encryption
     if not res:find("Privacy") then
@@ -218,6 +219,7 @@ parsers.iwlist = function(res)
     ap.ch=tonumber(res:match("Channel:(.-)\n"))
     ap.sig=tonumber(res:match("Signal level[:=](.-) dBm"))
     ap.noise=tonumber(res:match("Noise level[:=](.-) dBm"))
+    ap.tsf=sec2time(tonumber('0x'..(res:match("tsf=(%w-)\n") or 0))/(1000*1000), "%3dd %02d:%02d:%02d")
 
     -- parse encryption
     if not res:find("Encryption key:on") then
