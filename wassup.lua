@@ -43,7 +43,7 @@ columns = {
     snr     = { f = "%3s ",     r = 1   },
     noise   = { f = "%5s  "             },
     enc     = { f = "%-4s "             },
-    manuf   = { f = "%-10s "            },
+    vendor  = { f = "%-10s "            },
     tsf     = { f = "%14s "             },
     graph   = { f = "%-25s "            },
 }
@@ -282,8 +282,8 @@ function read(cmd, src)
     return v
 end
 --}}}
---{{{ get_manuf
-function get_manuf(mac)
+--{{{ get_vendor
+function get_vendor(mac)
     if not mac then return end
     if not readable(manuf) then return "" end
     str = read("grep -i ^"..mac:sub(1,8).." " .. manuf, "popen")
@@ -343,7 +343,7 @@ function update_ap(bssid)
         ap.sum = result.sig
         ap.first_seen = state.iter
         ap.last_seen = state.iter
-        ap.manuf = get_manuf(bssid) or ""
+        ap.vendor = get_vendor(bssid) or ""
         state.seen[bssid] = {}
     end
     -- gone
@@ -492,7 +492,7 @@ while state.iter < reps do
             string.lower(ap.essid):find(string.lower(filter)) or
             string.lower(ap.bssid):find(string.lower(filter)) or
             string.lower(ap.enc):find(string.lower(filter)) or
-            string.lower(ap.manuf):find(string.lower(filter)))
+            string.lower(ap.vendor):find(string.lower(filter)))
         then
             state.filtered[ap.bssid] = ap
         end
