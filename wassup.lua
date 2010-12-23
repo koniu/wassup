@@ -14,8 +14,6 @@ delay = 0
 leave = reps
 obscure = false
 row_highlight_field = "enc"
-manuf = "/etc/manuf"
-macdb = "/usr/share/macchanger/wireless.list"
 
 -- colors 
 colors = {
@@ -50,6 +48,16 @@ columns = {
 }
 column_order = {"bssid", "ch", "s", "essid", "sig", "min", "avg", "max", "loss", "enc"}
 
+-- vendor lists
+vendors = {
+    { files = { "/etc/manuf", "/usr/share/wireshark/manuf" },
+      pattern = "# (.*)\n", sep = ":" },
+    { files = { "/etc/manuf", "/usr/share/wireshark/manuf" },
+      pattern = "%w%w:%w%w:%w%w%s-([%w%p]+)", sep = ":" },
+    { files = { "oui.txt" }, pattern = "%(hex%)[\t%s]+(.*)\n", sep = "-" },
+    { files = { "/usr/share/macchanger/wireless.list", "/usr/share/macchanger/OUI.list" },
+      pattern = "%w%w %w%w %w%w (.*)\n", sep = " " },
+}
 --}}}
 --{{{ functions
 --{{{ getopt
@@ -288,15 +296,16 @@ end
 --{{{ get_vendor
 function get_vendor(mac)
     if not mac then return end
-    if readable(manuf) then
-        local str = read("grep -i ^"..mac:sub(1,8).." " .. manuf, "popen")
-        return (str:sub(10,20)):match("[%w%p]*")
-    elseif readable(macdb) then
-        local str = read("grep -i ^'".. string.gsub(mac:sub(1,8),":"," ") .."' " .. macdb, "popen")
-        return (str:sub(10,20)):match("[%w%p]*")
-    else
-        return ""
+    for i, list in ipairs(vendors) do
+        for j, file in ipairs(list.files) do
+            if readable(file) then
+                local fmac = string.gsub(mac:sub(1,8),":",list.sep)
+                local str = read(string.format("grep -i ^'%s' %s", fmac, file), "popen")
+                if #str > 0 then return str:match(list.pattern) end
+            end
+        end
     end
+    return ""
 end
 --}}}
 --{{{ cls
