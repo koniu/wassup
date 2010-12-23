@@ -12,9 +12,10 @@ keys = { "sig", "essid" }
 iface = "wlan0"
 delay = 0
 leave = reps
-manuf = "/etc/manuf"
 obscure = false
 row_highlight_field = "enc"
+manuf = "/etc/manuf"
+macdb = "/usr/share/macchanger/wireless.list"
 
 -- colors 
 colors = {
@@ -285,9 +286,15 @@ end
 --{{{ get_vendor
 function get_vendor(mac)
     if not mac then return end
-    if not readable(manuf) then return "" end
-    str = read("grep -i ^"..mac:sub(1,8).." " .. manuf, "popen")
-    return (str:sub(10,20)):match("[%w%p]*")
+    if readable(manuf) then
+        local str = read("grep -i ^"..mac:sub(1,8).." " .. manuf, "popen")
+        return (str:sub(10,20)):match("[%w%p]*")
+    elseif readable(macdb) then
+        local str = read("grep -i ^'".. string.gsub(mac:sub(1,8),":"," ") .."' " .. macdb, "popen")
+        return (str:sub(10,20)):match("[%w%p]*")
+    else
+        return ""
+    end
 end
 --}}}
 --{{{ cls
