@@ -1,10 +1,15 @@
 #!/usr/bin/env lua
---{{{ config
-
--- constants
+--{{{ constants
 name = "wassup.lua"
 version = "v0"
 
+text_attributes = {
+    none=0, bold=1, underline=4, blink=5, reverse=7, conceal=8,
+    black=30, red=31, green=32, yellow=33, blue=34, magenta=35, cyan=36, white=37,
+    bblack=40, bred=41, bgreen=42, byellow=43, bblue=44, bmagenta=45, bcyan=46, bwhite=47
+}
+--}}}
+--{{{ config
 -- defaults
 inf = 999999999
 reps = inf
@@ -13,40 +18,42 @@ iface = "wlan0"
 delay = 0
 leave = reps
 obscure = false
-row_highlight_field = "enc"
+row_highlights = { "enc", "s" }
+column_spacing = 1
 
 -- colors 
 colors = {
-    def         = "\27[0;0m",
-    gone        = "\27[0;34m",
-    sort        = "\27[1;37m",
+    def         = "none",
+    sort        = "bold,white",
     highlight = {
-        s   = { ["n"] = "\27[1;37m", ["g"] = "\27[0;34m", ["r"] = "\27[0;35m",
-                ["+"] = "\27[1;32m", ["="] = "\27[0;0m", ["-"] = "\27[1;31m" },
-        enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA.?"] = "\27[0;0m" },
+        enc =   { ["WEP"] = "red", ["OPN"] = "green" },
+        s =     { ["g"] = "blue" },
+        graph = { ["n"] = "yellow,byellow", ["g"] = "black,bblack", ["r"] = "green,bgreen",
+                  ["+"] = "green,bgreen", ["-"] = "red,bred", ["="] = "blue,bblue" },
     },
 }
-colors.highlight.graph = colors.highlight.s
 
 -- columns
-columns = {
-    bssid   = { f = "%-17s "            },
-    ch      = { f = "%2s "              },
-    s       = { f = "%1s ",     t = ""  },
-    essid   = { f = "%-20s  "           },
-    sig     = { f = "%3s  ",    r = 1   },
-    min     = { f = " %3s ",    r = 1   },
-    avg     = { f = "%3s ",     r = 1   },
-    max     = { f = "%3s  ",    r = 1   },
-    loss    = { f = "%4s  "             },
-    snr     = { f = "%3s ",     r = 1   },
-    noise   = { f = "%5s  "             },
-    enc     = { f = "%-4s "             },
-    vendor  = { f = "%-10s "            },
-    tsf     = { f = "%14s "             },
-    graph   = { f = "%-25s "            },
-}
 column_order = {"bssid", "ch", "s", "essid", "sig", "min", "avg", "max", "loss", "enc"}
+columns = {
+    bssid   = { format = "%-17s",               },
+    ch      = { format = "%2s",                 },
+    s       = { format = "%1s",                 },
+    essid   = { format = "%-20s",               },
+    sig     = { format = "%3s",    reverse = 1  },
+    noise   = { format = "%5s",                 },
+    snr     = { format = "%3s",    reverse = 1  },
+    min     = { format = " %3s",   reverse = 1  },
+    avg     = { format = "%3s",    reverse = 1  },
+    max     = { format = "%3s",    reverse = 1  },
+    loss    = { format = "%4s",                 },
+    enc     = { format = "%-4s",                },
+    vendor  = { format = "%-10s",               },
+    tsf     = { format = "%14s",                },
+    graph   = { format = "%-25s",               },
+    ciph    = { format = "%-10s",               },
+    auth    = { format = "%-4s",                },
+}
 
 -- vendor lists
 vendors = {
@@ -130,7 +137,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -f <filter>    filter by string [none]\
  -c <channel>   show only channel <num> [none]\
  -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]\
- -g <col>       highlight rows by field [enc]\
+ -g <c1,c2,...> highlight rows by field [enc,s]\
  -o             obfuscate bssid and essid columns\
 \
  -h             help yourself\
@@ -344,16 +351,9 @@ scanners.iwinfo = function(iface)
     return iwinfo[type].scanlist(iface)
 end
 --}}}
---{{{ column_len
-function column_len(col)
-    return tonumber(col.f:match("%%%-?(%d-)s")) or 100
-end
---}}}
 --{{{ update_graph
 function update_graph(g, s)
-    local len = column_len(columns.graph)
-    if #g >= len then g = g:sub(2,len) end
-    return g .. s
+    return g:sub(2,#g) .. s
 end
 --}}}
 --{{{ update_ap
@@ -364,7 +364,7 @@ function update_ap(bssid)
     -- first seen
     if not record and result then
         ap.s = "n"
-        ap.graph = string.rep(" ", column_len(columns.graph))
+        ap.graph = string.rep(" ", column_width(columns.graph.format))
         ap.seen = 1
         ap.sum = result.sig
         ap.first_seen = state.iter
@@ -414,7 +414,7 @@ function sortf(a,b)
     for i, key in ipairs(keys) do
         local v
         if a[key] ~= b[key] then
-            if columns[key].r then
+            if columns[key].reverse then
                 return (a[key] or -100) > (b[key] or -100)
             else
                 return (a[key] or -100) < (b[key] or -100)
@@ -430,6 +430,59 @@ function obfuscate(ap)
     obf_ap.bssid = ap.bssid:gsub("%w%w:%w%w:%w%w$","xx:xx:xx")
     obf_ap.essid = string.rep('x', #(ap.essid or ""))
     return obf_ap
+end
+--}}}
+--{{{ column_width
+function column_width(fmt)
+    return tonumber(fmt:match("%%%-?(%d-)s"))
+end
+--}}}
+--{{{ column_fmt
+function column_fmt(cname, old_attr, ap)
+    local column = columns[cname]
+    local width = column_width(column.format)
+    -- get value and highlight table
+    local value
+    local highlights = {}
+    if ap then
+        value = tostring(ap[cname] or ""):sub(1, width)
+        highlights = colors.highlight[cname] or {}
+    else
+        value = (column.title or cname):sub(1, width)
+        for i, key in ipairs(keys) do
+            if key == cname then highlights[cname] = colors.sort end
+        end
+    end
+    -- format, highlight and return content
+    value = string.format(column.format, value)
+    for pattern, color in pairs(highlights) do
+        value = value:gsub(pattern, attr(color) .. "%1" .. old_attr)
+    end
+    return value .. string.rep(" ", column_spacing)
+end
+--}}}
+--{{{ row_attr
+function row_attr(ap)
+    local a = ""
+    for i, highlight in ipairs(row_highlights) do
+        local hcolors = colors.highlight[highlight] or {}
+        for pattern, hcolor in pairs(hcolors) do
+            if ap[highlight]:match(pattern) then
+                a = attr(hcolor)
+                break
+            end
+        end
+    end
+    return a
+end
+--}}}
+--{{{ attr
+function attr(def)
+    local r = ""
+    for i, s in ipairs(split(def,",")) do
+        r = r .. string.format("\27[%sm", text_attributes[s] or "")
+    end
+    return r
 end
 --}}}
 --}}}
@@ -455,7 +508,7 @@ for k, v in pairs(opts) do
     if k == "c" then channel = v end
     if k == "l" then leave = tonumber(v) or reps end
     if k == "m" then method = v end
-    if k == "g" then row_highlight_field = v end
+    if k == "g" then row_highlights = split(v,",") end
     if k == "k" then column_order = split(v,",") end
     if k == "o" then obscure = true end
 end
@@ -534,44 +587,25 @@ while state.iter < reps do
     cls(0,0)
     stats()
     io.stdout:write("\27[4;0f\27[K")
+    local output = ""
 
     -- print table headers
-    local output = ""
-    local color
     for i, cname in ipairs(column_order) do
-        local c = columns[cname]
-        local color = colors.def
-        for _, key in ipairs(keys) do
-            if key == cname then color = colors.sort end
-        end
-        output = output .. color .. string.format(c.f, c.t or cname) .. colors.def
+        output = output .. column_fmt(cname, attr(colors.def))
     end
     io.stdout:write(output .. "\n\n")
     
     -- print result table
-    for i, r in ipairs(list) do
-
-        -- set row color
-        local color = colors.def
-        local hcolors = colors.highlight[row_highlight_field] or {}
-        for pattern, hcolor in pairs(hcolors) do
-            if r[row_highlight_field]:match(pattern) then color = hcolor end
-        end
-
-        -- format row
-        local output = color
+    for i, ap in ipairs(list) do
+        -- set row text attributes
+        local rattr = attr(colors.def) .. row_attr(ap)
+        -- format columns
+        local cols = ""
         for i, cname in ipairs(column_order) do
-            local c = columns[cname]
-            local value = tostring(r[cname] or ""):sub(1, column_len(c))
-            local hcolors = colors.highlight[cname] or {}
-            for pattern, hcolor in pairs(hcolors) do
-                value = value:gsub("("..pattern..")", hcolor.."%1"..color)
-            end
-            output = output .. string.format(c.f, value)
+            cols = cols .. column_fmt(cname, rattr, ap)
         end
-        output = output .. colors.def .. "\n"
-
-        -- print
+        -- output row
+        local output = rattr .. cols .. attr(colors.def) .. "\n"
         io.stdout:write(output)
     end
 --}}}

@@ -28,7 +28,7 @@ Usage: wassup.lua <options>
  -f <filter>    filter by string [none]
  -c <channel>   show only channel <num> [none]
  -l <leave>     show out-of-range APs for <leave> of cycles [f = forever]
- -g <col>       highlight rows by field [enc]
+ -g <c1,c2,...> highlight rows by field [enc,s]
  -o             obfuscate bssid and essid columns
 
  -h             help yourself
