@@ -193,6 +193,8 @@ parsers.iw = function(res, survey)
     ap.sig = tonumber(res:match("signal: (.-) dBm"))
     ap.freq = tonumber(res:match("freq: (.-)\n"))
     ap.tsf = sec2time(tonumber(res:match("TSF: (%d-) usec"))/(1000*1000),"%3dd %02d:%02d:%02d")
+    ap.auth = res:match("Authentication suites: (.-)\n")
+    ap.ciph = res:match("Pairwise ciphers: (.-)\n")
 
     -- parse encryption
     if not res:find("Privacy") then
@@ -227,6 +229,8 @@ parsers.iwlist = function(res)
     ap.sig=tonumber(res:match("Signal level[:=](.-) dBm"))
     ap.noise=tonumber(res:match("Noise level[:=](.-) dBm"))
     ap.tsf=sec2time(tonumber('0x'..(res:match("tsf=(%w-)\n") or 0))/(1000*1000), "%3dd %02d:%02d:%02d")
+    ap.auth = res:match("Authentication Suites.- : (.-)\n")
+    ap.ciph = res:match("Pairwise Ciphers.- : (.-)\n")
 
     -- parse encryption
     if not res:find("Encryption key:on") then
@@ -251,6 +255,8 @@ parsers.iwinfo = function(res)
     ap.essid = res.ssid or ""
     ap.ch = res.channel
     ap.sig = res.signal
+    ap.auth = table.concat(res.encryption.auth_suites, " ")
+    ap.ciph = table.concat(res.encryption.pair_ciphers, " ")
 
     -- parse encryption
     if res.encryption.enabled then
