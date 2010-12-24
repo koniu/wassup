@@ -23,7 +23,7 @@ colors = {
     highlight = {
         s   = { ["n"] = "\27[1;37m", ["g"] = "\27[0;34m", ["r"] = "\27[0;35m",
                 ["+"] = "\27[1;32m", ["="] = "\27[0;0m", ["-"] = "\27[1;31m" },
-        enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA2"] = "\27[0;0m", ["WPA$"] = "\27[0;0m" },
+        enc = { ["WEP"] = "\27[0;31m", ["OPN"] = "\27[0;32m", ["WPA.?"] = "\27[0;0m" },
     },
 }
 colors.highlight.graph = colors.highlight.s
@@ -197,14 +197,13 @@ parsers.iw = function(res, survey)
     -- parse encryption
     if not res:find("Privacy") then
         ap.enc = "OPN"
-    elseif res:find("TKIP") or res:find("CCMP") then
-        if res:find("RSN") then
-            ap.enc = "WPA2"
-        else
-            ap.enc = "WPA"
-        end
     else
-        ap.enc = "WEP"
+        local wpa = res:find("WPA")
+        local rsn = res:find("RSN")
+        if wpa and rsn then ap.enc = "WPA*"
+        elseif rsn then ap.enc = "WPA2"
+        elseif wpa then ap.enc = "WPA"
+        else ap.enc = "WEP" end
     end
 
     -- parse iw survey info
@@ -232,12 +231,13 @@ parsers.iwlist = function(res)
     -- parse encryption
     if not res:find("Encryption key:on") then
         ap.enc = "OPN"
-    elseif res:find("WPA2 Version 1") then
-        ap.enc = "WPA2"
-    elseif res:find("WPA Version 1") then
-        ap.enc = "WPA"
     else
-        ap.enc = "WEP"
+        local wpa = res:find("WPA Version 1")
+        local rsn = res:find("WPA2 Version 1")
+        if wpa and rsn then ap.enc = "WPA*"
+        elseif rsn then ap.enc = "WPA2"
+        elseif wpa then ap.enc = "WPA"
+        else ap.enc = "WEP" end
     end
     
     return ap
@@ -258,8 +258,10 @@ parsers.iwinfo = function(res)
             ap.enc = "WEP"
         elseif res.encryption.wpa == 1 then
             ap.enc = "WPA"
-        elseif res.encryption.wpa > 1 then
+        elseif res.encryption.wpa == 2 then
             ap.enc = "WPA2"
+        elseif res.encryption.wpa == 3 then
+            ap.enc = "WPA*"
         end
     else
         ap.enc = "OPN"
