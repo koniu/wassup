@@ -283,6 +283,33 @@ parsers.iwinfo = function(res)
     return ap
 end
 --}}}
+--{{{ parse_airport
+parsers.airport = function(res)
+    -- parse airport scan info
+    local ap = {}
+    ap.essid = (res:sub(1,32)):match("^%s-(%w[%w%p%s]+)")
+    ap.bssid = res:sub(34,50)
+    ap.sig = tonumber(res:sub(52,55))
+    ap.ch = tonumber(res:sub(57,58))
+    -- parse encryption
+    local sec = res:sub(70,#res)
+    if sec:find("NONE") then
+        ap.enc = "OPN"
+    elseif sec:find("WEP") then
+        ap.enc = "WEP"
+    else
+        local wpa = sec:find("WPA%(")
+        local rsn = sec:find("WPA2%(")
+        if wpa and rsn then ap.enc = "WPA*"
+        elseif rsn then ap.enc = "WPA2"
+        elseif wpa then ap.enc = "WPA" end
+        ap.ciph = sec:match("%(([%w%p]-)/")
+        ap.auth = sec:match("/([%w%p]-)/")
+    end
+
+    return ap
+end
+--}}}
 --{{{ len
 function len(t)
     local count = 0
@@ -349,6 +376,11 @@ end
 scanners.iwinfo = function(iface)
     local type = iwinfo.type(iface)
     return iwinfo[type].scanlist(iface)
+end
+scanners.airport = function(iface)
+    local res = split(read(airport_bin.." "..iface.." scan", "popen"), "\n")
+    table.remove(res, 1)
+    return res
 end
 --}}}
 --{{{ update_graph
@@ -521,6 +553,7 @@ start = os.date("%s")
 width = os.getenv("COLUMNS") or 80
 iw_bin = chomp(read("which iw", "popen"))
 iwlist_bin = chomp(read("which iwlist", "popen"))
+airport_bin = chomp(read("which airport", "popen"))
 
 -- select scanning method
 local res, err = pcall(require, "iwinfo")
