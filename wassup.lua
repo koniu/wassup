@@ -53,6 +53,7 @@ columns = {
     graph   = { format = "%-25s",               },
     ciph    = { format = "%-10s",               },
     auth    = { format = "%-4s",                },
+    last_seen = { format = "%13s",              },
 }
 
 -- vendor lists
@@ -166,7 +167,6 @@ function line_layout(left_fmt, left_list, right_fmt, right_list)
     return left .. space .. right
 end
 function stats()
-    local now = os.date("%s")
     local l1 = line_layout("%s %s", { name, version },
                            "iter %s%s, elapsed %s", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start, "%dd %02d:%02d:%02d") })
     local l2 = line_layout("%s %s", { iface, state.action },
@@ -368,7 +368,7 @@ function update_ap(bssid)
         ap.seen = 1
         ap.sum = result.sig
         ap.first_seen = state.iter
-        ap.last_seen = state.iter
+        ap.last_seen_i = state.iter
         ap.vendor = get_vendor(bssid) or ""
         state.seen[bssid] = {}
     end
@@ -378,6 +378,7 @@ function update_ap(bssid)
         ap.sig = false
         ap.snr = false
         ap.noise = false
+        ap.last_seen = os.date("!%H:%M:%S ago", now - (ap.last_seen_t or record.last_seen_t))
     end
     -- update stats
     if result then
@@ -390,12 +391,14 @@ function update_ap(bssid)
         else
             record = {}
         end
-        ap.last_seen = state.iter
+        ap.last_seen_i = state.iter
+        ap.last_seen_t = now
         ap.seen = (record.seen or 0) + 1
         ap.sum = (record.sum or 0 ) + result.sig
         ap.avg = math.floor(ap.sum / ap.seen)
         ap.max = math.max((record.max or -100), result.sig)
         ap.min = math.min((record.min or 0), result.sig)
+        ap.last_seen = "now"
     end
     if record then
         local total = state.iter - (ap.first_seen or record.first_seen) + 1
@@ -542,6 +545,7 @@ while state.iter < reps do
 --{{{ scan and parse
     -- read iw scan
     state.action = "scan"
+    now = os.date("%s")
     stats()
     local res, survey = scanners[method](iface)
     if #res == 0 then sleep(1) else state.iter = state.iter + 1 end
@@ -566,7 +570,7 @@ while state.iter < reps do
     for _, ap in pairs(state.seen) do
         -- filter APs for display
         if ((not channel) or (channel and ap.ch == tonumber(channel))) and
-            state.iter - ap.last_seen < leave and
+            state.iter - ap.last_seen_i < leave and
             ((not filter) or
             string.lower(ap.essid):find(string.lower(filter)) or
             string.lower(ap.bssid):find(string.lower(filter)) or
