@@ -38,4 +38,5 @@ Usage: wassup.lua <options>
  -g <c1,c2,...> highlight rows by field [enc,s]
  -o             obfuscate bssid and essid columns
 
+ -C <cfgfile>   use settings from <cfgfile>
  -h             help yourself

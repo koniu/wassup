@@ -143,6 +143,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -g <c1,c2,...> highlight rows by field [enc,s]\
  -o             obfuscate bssid and essid columns\
 \
+ -C <cfgfile>   use settings from <cfgfile>\
  -h             help yourself\
 "
 
@@ -549,8 +550,9 @@ state = {
 }
 
 -- parse options
-opts = getopt( arg, "dfirslckmgb" )
+opts = getopt( arg, "dfirslckmgbC" )
 for k, v in pairs(opts) do
+    if k == "C" then if readable(v) then dofile(v) end end
     if k == "h" then usage() end
     if k == "r" then reps = tonumber(v) end
     if k == "s" then keys = split(v,",") end
