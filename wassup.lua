@@ -414,15 +414,7 @@ function update_ap(bssid)
     end
     -- update stats
     if result then
-        if record then
-            if record.s == "g" then ap.s = "r"
-            elseif record.sig > result.sig then ap.s = "-"
-            elseif record.sig < result.sig then ap.s = "+"
-            elseif record.sig == result.sig then ap.s = "="
-            end
-        else
-            record = {}
-        end
+        record = record or {}
         ap.last_seen_i = state.iter
         ap.last_seen_t = now
         ap.seen = (record.seen or 0) + 1
@@ -431,6 +423,14 @@ function update_ap(bssid)
         ap.max = math.max((record.max or -100), result.sig)
         ap.min = math.min((record.min or 0), result.sig)
         ap.last_seen = "now"
+        ap.dev_sum = (record.dev_sum or 0) + math.abs(ap.avg - result.sig)
+        ap.mdev = ap.dev_sum / ap.seen
+        if record.bssid then
+            if record.s == "g" then ap.s = "r"
+            elseif result.sig > ap.avg + math.ceil(ap.mdev) then ap.s = "+"
+            elseif result.sig < ap.avg - math.ceil(ap.mdev) then ap.s = "-"
+            else ap.s = "=" end
+        end
     end
     if record then
         local total = state.iter - (ap.first_seen or record.first_seen) + 1
