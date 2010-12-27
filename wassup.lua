@@ -369,7 +369,7 @@ scanners.iw = function(iface)
     return res, survey
 end
 scanners.iwlist = function(iface)
-    local res = split(read(iwlist_bin.." "..iface.." scan", "popen"), "Cell")
+    local res = split(read(iwlist_bin.." "..iface.." scan", "popen"), "Cell %d%d")
     table.remove(res, 1)
     return res
 end
