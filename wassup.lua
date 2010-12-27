@@ -469,7 +469,7 @@ end
 --}}}
 --{{{ column_width
 function column_width(fmt)
-    return tonumber(fmt:match("%%%-?(%d-)s"))
+    return #string.format(fmt,"")
 end
 --}}}
 --{{{ column_fmt
@@ -550,10 +550,17 @@ end
 
 -- get environment
 start = os.date("%s")
-width = os.getenv("COLUMNS") or 80
 iw_bin = chomp(read("which iw", "popen"))
 iwlist_bin = chomp(read("which iwlist", "popen"))
 airport_bin = chomp(read("which airport", "popen"))
+
+-- calculate screen width
+width = -column_spacing
+for i, c in ipairs(column_order) do
+    if columns[c] then
+        width = width + column_width(columns[c].format) + column_spacing
+    end
+end
 
 -- select scanning method
 local res, err = pcall(require, "iwinfo")
