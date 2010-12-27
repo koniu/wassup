@@ -131,7 +131,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -i <iface>     interface to use [wlan0]\
  -d <delay>     delay between scan cycles [0]\
  -r <repeat>    number of scan cycles [0 = forever]\
- -m <method>    scan method [iw, iwinfo or iwlist]\
+ -m <method>    scan method [iw, iwinfo, iwlist or airport]\
 \
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]\
  -s <c1,c2,...> sort by columns [sig,essid]\
