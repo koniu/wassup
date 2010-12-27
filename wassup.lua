@@ -169,10 +169,10 @@ function line_layout(left_fmt, left_list, right_fmt, right_list)
     return left .. space .. right
 end
 function stats()
-    local l1 = line_layout("%s %s", { name, version },
-                           "iter %s%s, elapsed %s", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start, "%dd %02d:%02d:%02d") })
-    local l2 = line_layout("%s %s", { iface, state.action },
-                           "showing: %s  scanned: %s  seen: %s", { len(state.filtered), len(state.results), len(state.seen) })
+    local l1 = line_layout("[ %s @ %s/%s ]", { name, iface, method},
+                           "[ iter: %s%s  elapsed: %s ]", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start, "%dd %02d:%02d:%02d") })
+    local l2 = line_layout("[ %-"..(#tostring(buff) * 2 + 6).."s ][ results: %2s  avg: %2s ]", { state.action, last_result_num, avg_result_num },
+                           "[ showing: %s  seen: %s ]", { len(state.filtered), len(state.seen) })
     io.stdout:write("\27[0;0f\27[K")
     io.stdout:write(l1.."\n"..l2)
     io.stdout:write("\27[0;0f")
