@@ -46,7 +46,7 @@ columns = {
     min     = { format = " %3s",   reverse = 1  },
     avg     = { format = "%3s",    reverse = 1  },
     max     = { format = "%3s",    reverse = 1  },
-    loss    = { format = "%4s",                 },
+    loss    = { format = "%5s%%",               },
     enc     = { format = "%-4s",                },
     vendor  = { format = "%-10s",               },
     tsf     = { format = "%14s",                },
@@ -434,7 +434,7 @@ function update_ap(bssid)
     end
     if record then
         local total = state.iter - (ap.first_seen or record.first_seen) + 1
-        ap.loss = math.floor((total - ap.seen) * 100 / total) .. "%"
+        ap.loss = math.floor((total - ap.seen) * 100 / total)
         ap.graph = update_graph(record.graph or ap.graph, ap.s)
     end
 
