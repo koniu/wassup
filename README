@@ -27,6 +27,7 @@ Usage: wassup.lua <options>
  -i <iface>     interface to use [wlan0]
  -d <delay>     delay between scan cycles [0]
  -r <repeat>    number of scan cycles [0 = forever]
+ -b <buffer>    number of scans in a cycle [1]
  -m <method>    scan method [iw, iwinfo, iwlist or airport]
 
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]

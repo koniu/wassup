@@ -20,6 +20,7 @@ leave = reps
 obscure = false
 row_highlights = { "enc", "s" }
 column_spacing = 1
+buff = 1
 
 -- colors 
 colors = {
@@ -131,6 +132,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -i <iface>     interface to use [wlan0]\
  -d <delay>     delay between scan cycles [0]\
  -r <repeat>    number of scan cycles [0 = forever]\
+ -b <buffer>    number of scans in a cycle [1]\
  -m <method>    scan method [iw, iwinfo, iwlist or airport]\
 \
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]\
@@ -388,9 +390,23 @@ function update_graph(g, s)
     return g:sub(2,#g) .. s
 end
 --}}}
+--{{{ update_buffer
+function update_buffer(bssid)
+    local result = state.results[bssid]
+    local buffer = state.buffer[bssid] or {}
+    local ap = result
+    ap.sig_sum = (buffer.sig_sum or 0) + result.sig
+    ap.noise_sum = result.noise and (buffer.noise_sum or 0) + result.noise
+    ap.seen = (buffer.seen or 0) + 1
+    ap.sig = math.floor(ap.sig_sum / ap.seen)
+    ap.noise = ap.noise_sum and math.floor(ap.noise_sum / ap.seen)
+    state.buffer[bssid] = ap
+end
+
+--}}}
 --{{{ update_ap
 function update_ap(bssid)
-    local result = state.results[bssid]
+    local result = state.buffer[bssid]
     local record = state.seen[bssid]
     local ap = result or record
     -- first seen
@@ -528,11 +544,12 @@ state = {
     seen = {},
     results = {},
     filtered = {},
+    buffer = {},
     iter = 0,
 }
 
 -- parse options
-opts = getopt( arg, "dfirslckmg" )
+opts = getopt( arg, "dfirslckmgb" )
 for k, v in pairs(opts) do
     if k == "h" then usage() end
     if k == "r" then reps = tonumber(v) end
@@ -546,6 +563,7 @@ for k, v in pairs(opts) do
     if k == "g" then row_highlights = split(v,",") end
     if k == "k" then column_order = split(v,",") end
     if k == "o" then obscure = true end
+    if k == "b" then buff = tonumber(v) end
 end
 
 -- get environment
@@ -581,78 +599,95 @@ end
 cls(0,0)
 --}}}
 --{{{ main loop
+avg_result_num = 0
+last_result_num = 0
 while state.iter < reps do
 --{{{ scan and parse
-    -- read iw scan
-    state.action = "scan"
     now = os.date("%s")
+    counter = (counter or 0) + 1
+    if buff > 1 then
+        state.action = string.format("scan %s/%s", counter, buff)
+    else
+        state.action = "scan"
+    end
     stats()
-    local res, survey = scanners[method](iface)
-    if #res == 0 then sleep(1) else state.iter = state.iter + 1 end
 
-    -- parse iw results/survey outputs
+    local res, survey = scanners[method](iface)
     state.results = {}
     for i = 1, #res do
         local ap = parse(method, res[i], survey)
         if ap.bssid and ap.sig then
             state.results[ap.bssid] = ap
+            update_buffer(ap.bssid)
+        end
+    end
+    last_result_num = len(state.buffer)
+--}}}
+    if counter == buff then
+    --{{{ update APs
+        if len(state.buffer) == 0 then sleep(1) else state.iter = state.iter + 1 end
+        sum_result_num = (sum_result_num or 0) + len(state.buffer)
+        avg_result_num = math.floor(sum_result_num / state.iter)
+        -- update buffered
+        for _, ap in pairs(state.buffer) do
             update_ap(ap.bssid)
         end
-    end
---}}}
---{{{ update gone
-    for _, ap in pairs(state.seen) do
-        if not state.results[ap.bssid] then update_ap(ap.bssid) end
-    end
---}}}
---{{{ filter for display
-    state.filtered = {}
-    for _, ap in pairs(state.seen) do
-        -- filter APs for display
-        if ((not channel) or (channel and ap.ch == tonumber(channel))) and
-            state.iter - ap.last_seen_i < leave and
-            ((not filter) or
-            string.lower(ap.essid):find(string.lower(filter)) or
-            string.lower(ap.bssid):find(string.lower(filter)) or
-            string.lower(ap.enc):find(string.lower(filter)) or
-            string.lower(ap.vendor):find(string.lower(filter)))
-        then
-            state.filtered[ap.bssid] = ap
+        -- update gone
+        for _, ap in pairs(state.seen) do
+            if not state.buffer[ap.bssid] then update_ap(ap.bssid) end
         end
-    end
---}}}
---{{{ prepare and sort list for display
-    local list = {}
-    for _, ap in pairs(state.filtered) do table.insert(list, obfuscate(ap)) end
-    table.sort(list, sortf)
---}}}
---{{{ output
-    -- clear screen + update 
-    cls(0,0)
-    stats()
-    io.stdout:write("\27[4;0f\27[K")
-    local output = ""
+        state.buffer = {}
+        counter = 0
+    --}}}
+    --{{{ filter for display
+        state.filtered = {}
+        for _, ap in pairs(state.seen) do
+            -- filter APs for display
+            if ((not channel) or (channel and ap.ch == tonumber(channel))) and
+                state.iter - ap.last_seen_i < leave and
+                ((not filter) or
+                string.lower(ap.essid):find(string.lower(filter)) or
+                string.lower(ap.bssid):find(string.lower(filter)) or
+                string.lower(ap.enc):find(string.lower(filter)) or
+                string.lower(ap.vendor):find(string.lower(filter)))
+            then
+                state.filtered[ap.bssid] = ap
+            end
+        end
+    --}}}
+    --{{{ prepare and sort list for display
+        local list = {}
+        for _, ap in pairs(state.filtered) do table.insert(list, obfuscate(ap)) end
+        table.sort(list, sortf)
+    --}}}
+    --{{{ output
+        -- clear screen + update
+        cls(0,0)
+        stats()
+        io.stdout:write("\27[4;0f\27[K")
+        local output = ""
 
-    -- print table headers
-    for i, cname in ipairs(column_order) do
-        output = output .. column_fmt(cname, attr(colors.def))
-    end
-    io.stdout:write(output .. "\n\n")
-    
-    -- print result table
-    for i, ap in ipairs(list) do
-        -- set row text attributes
-        local rattr = attr(colors.def) .. row_attr(ap)
-        -- format columns
-        local cols = ""
+        -- print table headers
         for i, cname in ipairs(column_order) do
-            cols = cols .. column_fmt(cname, rattr, ap)
+            output = output .. column_fmt(cname, attr(colors.def))
         end
-        -- output row
-        local output = rattr .. cols .. attr(colors.def) .. "\n"
-        io.stdout:write(output)
+        io.stdout:write(output .. "\n\n")
+
+        -- print result table
+        for i, ap in ipairs(list) do
+            -- set row text attributes
+            local rattr = attr(colors.def) .. row_attr(ap)
+            -- format columns
+            local cols = ""
+            for i, cname in ipairs(column_order) do
+                cols = cols .. column_fmt(cname, rattr, ap)
+            end
+            -- output row
+            local output = rattr .. cols .. attr(colors.def) .. "\n"
+            io.stdout:write(output)
+        end
+    --}}}
     end
---}}}
 --{{{ sleep
     if delay > 0 then
         state.action = "sleep"
