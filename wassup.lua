@@ -587,7 +587,7 @@ while state.iter < reps do
     state.results = {}
     for i = 1, #res do
         local ap = parse(method, res[i], survey)
-        if ap.bssid then
+        if ap.bssid and ap.sig then
             state.results[ap.bssid] = ap
             update_ap(ap.bssid)
         end
