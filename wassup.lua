@@ -55,6 +55,7 @@ columns = {
     ciph    = { format = "%-10s",               },
     auth    = { format = "%-4s",                },
     last_seen = { format = "%13s",              },
+    first_seen = { format = "%13s",             },
 }
 
 -- vendor lists
@@ -418,7 +419,8 @@ function update_ap(bssid)
         ap.graph = string.rep(" ", column_width(columns.graph.format))
         ap.seen = 1
         ap.sum = result.sig
-        ap.first_seen = state.iter
+        ap.first_seen_i = state.iter
+        ap.first_seen_t = now
         ap.last_seen_i = state.iter
         ap.vendor = get_vendor(bssid) or ""
         state.seen[bssid] = {}
@@ -452,9 +454,10 @@ function update_ap(bssid)
         end
     end
     if record then
-        local total = state.iter - (ap.first_seen or record.first_seen) + 1
+        local total = state.iter - (ap.first_seen_i or record.first_seen_i) + 1
         ap.loss = math.floor((total - ap.seen) * 100 / total)
         ap.graph = update_graph(record.graph or ap.graph, ap.s)
+        ap.first_seen = os.date("!%H:%M:%S ago", now - (ap.first_seen_t or record.first_seen_t))
     end
 
     -- update seen table
