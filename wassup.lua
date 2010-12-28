@@ -447,7 +447,8 @@ function update_ap(bssid)
         ap.dev_sum = (record.dev_sum or 0) + math.abs(ap.avg - result.sig)
         ap.mdev = ap.dev_sum / ap.seen
         if record.bssid then
-            if record.s == "g" then ap.s = "r"
+            if record.tsf and result.tsf and record.tsf > result.tsf then ap.s = "R"
+            elseif record.s == "g" then ap.s = "r"
             elseif result.sig > ap.avg + math.ceil(ap.mdev) then ap.s = "+"
             elseif result.sig < ap.avg - math.ceil(ap.mdev) then ap.s = "-"
             else ap.s = "=" end
