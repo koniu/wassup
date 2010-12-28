@@ -702,6 +702,9 @@ while state.iter < reps do
         stats()
         sleep(delay)
     end
+    if not (buff == 1 and delay == 0) and counter == 0 then
+        last_result_num = 0
+    end
 --}}}    
 end
 --}}}
