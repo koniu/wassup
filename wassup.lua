@@ -165,21 +165,22 @@ function sec2time(s, fmt)
     return string.format(fmt, dd, hh, mm, ss)
 end
 --}}}
---{{{ stats
+--{{{ header
 function line_layout(left_fmt, left_list, right_fmt, right_list)
     local left = string.format(left_fmt, unpack(left_list))
     local right = string.format(right_fmt, unpack(right_list))
     local space = string.rep(" ", width - #left - #right)
     return left .. space .. right
 end
-function stats()
+function header()
     local l1 = line_layout("[ %s @ %s/%s ]", { name, iface, method},
                            "[ iter: %s%s  elapsed: %s ]", { state.iter, (reps == inf and "") or "/"..reps, sec2time(now-start, "%dd %02d:%02d:%02d") })
     local l2 = line_layout("[ %-"..(#tostring(buff) * 2 + 6).."s ][ results: %2s  avg: %2s ]", { state.action, last_result_num, avg_result_num },
                            "[ showing: %s  seen: %s ]", { len(state.filtered), len(state.seen) })
-    io.stdout:write("\27[0;0f\27[K")
-    io.stdout:write(l1.."\n"..l2)
     io.stdout:write("\27[0;0f")
+    io.stdout:write("\27[K"..l1.."\n")
+    io.stdout:write("\27[K"..l2.."\n")
+    io.stdout:write("\27[K")
 end
 --}}}
 --{{{ parse
@@ -622,7 +623,7 @@ while state.iter < reps do
     else
         state.action = "scan"
     end
-    stats()
+    header()
 
     local res, survey = scanners[method](iface)
     state.results = {}
@@ -673,20 +674,18 @@ while state.iter < reps do
         table.sort(list, sortf)
     --}}}
     --{{{ output
-        -- clear screen + update
-        cls(0,0)
-        stats()
-        io.stdout:write("\27[4;0f\27[K")
-        local output = ""
-
+        -- update header
+        header()
         -- print table headers
+        local output = ""
+        io.stdout:write("\27[4;0f\27[K")
         for i, cname in ipairs(column_order) do
             output = output .. column_fmt(cname, attr(colors.def))
         end
-        io.stdout:write(output .. "\n\n")
-
+        io.stdout:write(output .. "\n\27[K\n")
         -- print result table
         for i, ap in ipairs(list) do
+            io.stdout:write("\27[K")
             -- set row text attributes
             local rattr = attr(colors.def) .. row_attr(ap)
             -- format columns
@@ -698,12 +697,14 @@ while state.iter < reps do
             local output = rattr .. cols .. attr(colors.def) .. "\n"
             io.stdout:write(output)
         end
+        -- clear remaining lines
+        for i=1,1000 do io.stdout:write("\27[K\27[1B") end
     --}}}
     end
 --{{{ sleep
     if delay > 0 then
         state.action = "sleep"
-        stats()
+        header()
         sleep(delay)
     end
     if not (buff == 1 and delay == 0) and counter == 0 then
