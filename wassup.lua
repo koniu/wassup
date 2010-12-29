@@ -679,7 +679,6 @@ while state.iter < reps do
         io.stdout:write(output .. "\n\27[K\n")
         -- print result table
         for i, ap in ipairs(list) do
-            io.stdout:write("\27[K")
             -- set row text attributes
             local rattr = attr(colors.def) .. row_attr(ap)
             -- format columns
@@ -688,7 +687,7 @@ while state.iter < reps do
                 cols = cols .. column_fmt(cname, rattr, ap)
             end
             -- output row
-            local output = rattr .. cols .. attr(colors.def) .. "\n"
+            local output = "\27[K" .. rattr .. cols .. attr(colors.def) .. "\n"
             io.stdout:write(output)
         end
         -- clear remaining lines
