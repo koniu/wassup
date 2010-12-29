@@ -359,12 +359,6 @@ function get_vendor(mac)
     return ""
 end
 --}}}
---{{{ cls
-function cls(x,y)
-    io.stdout:write("\27[2J")
-    io.stdout:write("\27["..x..";"..y.."f")
-end
---}}}
 --{{{ chomp
 function chomp(str)
     return str:sub(1,#str-1)
@@ -609,7 +603,7 @@ if not method then
 end
 
 -- clear screen
-cls(0,0)
+io.stdout:write("\27[2J")
 --}}}
 --{{{ main loop
 avg_result_num = 0
