@@ -104,7 +104,9 @@ end
 --}}}
 --{{{ sleep
 function sleep(n)
-    os.execute("sleep " .. n)
+    if posix then posix.sleep(n)
+    elseif socket then socket.select(nil, nil, n)
+    else os.execute("sleep " .. n) end
 end
 --}}}
 --{{{ split
@@ -579,6 +581,8 @@ start = os.date("%s")
 iw_bin = chomp(read("which iw", "popen"))
 iwlist_bin = chomp(read("which iwlist", "popen"))
 airport_bin = chomp(read("which airport", "popen"))
+local res, err = pcall(require, "socket")
+local res, err = pcall(require, "posix")
 
 -- calculate screen width
 width = -column_spacing
