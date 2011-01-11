@@ -467,7 +467,8 @@ end
 --{{{ sortf
 function sortf(a,b)
     for i, key in ipairs(keys) do
-        local v
+        local ta, tb = type(a[key]), type(b[key])
+        if ta ~= tb then return ta < tb end
         if a[key] ~= b[key] then
             if columns[key].reverse then
                 return (a[key] or -100) > (b[key] or -100)
