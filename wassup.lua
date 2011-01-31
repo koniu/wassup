@@ -190,7 +190,7 @@ function parse(method, res, survey)
 
     -- calculate snr
     if ap.noise and ap.sig then
-        ap.snr = -(ap.noise - ap.sig)
+        ap.snr = math.abs(ap.sig - ap.noise)
     end
 
     return ap
