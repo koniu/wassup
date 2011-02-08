@@ -137,6 +137,7 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -r <repeat>    number of scan cycles [0 = forever]\
  -b <buffer>    number of scans in a cycle [1]\
  -m <method>    scan method [iw, iwinfo, iwlist or airport]\
+ -p             force passive scanning (affects 'iw' backend only)\
 \
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]\
  -s <c1,c2,...> sort by columns [sig,essid]\
@@ -367,7 +368,7 @@ end
 --{{{ scanners
 scanners = {}
 scanners.iw = function(iface)
-    local res = split(read(iw_bin.." "..iface.." scan", "popen"), "\nBSS ")
+    local res = split(read(iw_bin.." "..iface.." scan "..(passive or ""), "popen"), "\nBSS ")
     local survey = split(read(iw_bin.." "..iface.." survey dump", "popen"), "Survey data")
     return res, survey
 end
@@ -570,6 +571,7 @@ for k, v in pairs(opts) do
     if k == "k" then column_order = split(v,",") end
     if k == "o" then obscure = true end
     if k == "b" then buff = tonumber(v) end
+    if k == "p" then passive = "passive" end
 end
 
 -- get environment
