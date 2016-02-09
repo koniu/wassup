@@ -9,6 +9,7 @@ in a readable text format.
 It depends on Lua 5.1 and can use any of the following scanning backends:
 * iwlist(8) - from wireless-tools, based on wext and pretty standard
 * iw(8) - nl80211 based utility, common on some newer systems
+* wpa_cli(8) - wpa_supplicant command-line utility
 * libiwinfo - nice abstraction library available in OpenWrt trunk
 * airport - standard OSX command line utility
 
@@ -28,7 +29,8 @@ Usage: wassup.lua <options>
  -d <delay>     delay between scan cycles [0]
  -r <repeat>    number of scan cycles [0 = forever]
  -b <buffer>    number of scans in a cycle [1]
- -m <method>    scan method [iw, iwinfo, iwlist or airport]
+ -m <method>    scan method [iw, iwinfo, iwlist, wpacli or airport]
+ -S <dir>       path to wpa_supplicant sockets [/var/run/wpa_supplicant]
 
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]
  -s <c1,c2,...> sort by columns [sig,essid]

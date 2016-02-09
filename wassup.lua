@@ -8,6 +8,7 @@ text_attributes = {
     black=30, red=31, green=32, yellow=33, blue=34, magenta=35, cyan=36, white=37,
     bblack=40, bred=41, bgreen=42, byellow=43, bblue=44, bmagenta=45, bcyan=46, bwhite=47
 }
+channels = { 2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484 }
 --}}}
 --{{{ config
 -- defaults
@@ -21,6 +22,7 @@ obscure = false
 row_highlights = { "enc", "s" }
 column_spacing = 1
 buff = 1
+wpa_dir = "/var/run/wpa_supplicant"
 
 -- colors 
 colors = {
@@ -136,7 +138,8 @@ help=name .. " " .. version .. " - WAyereless Site SUrveying Program \n\nUsage: 
  -d <delay>     delay between scan cycles [0]\
  -r <repeat>    number of scan cycles [0 = forever]\
  -b <buffer>    number of scans in a cycle [1]\
- -m <method>    scan method [iw, iwinfo, iwlist or airport]\
+ -m <method>    scan method [iw, iwinfo, iwlist, wpacli or airport]\
+ -S <dir>       path to wpa_supplicant sockets [/var/run/wpa_supplicant]\
  -p             force passive scanning (affects 'iw' backend only)\
 \
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]\
@@ -320,6 +323,44 @@ parsers.airport = function(res)
     return ap
 end
 --}}}
+--{{{ parse_wpacli
+parsers = {}
+parsers.wpacli = function(res, survey)
+    -- parse wpa_cli scan info
+    local ap = {}
+    local cols = split(res, "%s")
+    ap.bssid = cols[1]
+    ap.freq = cols[2]
+    ap.sig = cols[3]
+    ap.essid = cols[5]
+    -- parse key/enc flags from output
+    local key = split(cols[4]:gsub('%[',''), '[%]%-]')
+    local keys = {}
+    for i,v in ipairs(key) do
+        keys[v] = true
+    end
+    if keys.WPA2 and keys.WPA then
+        ap.enc = "WPA*"
+    elseif keys.WPA2 then
+        ap.enc = "WPA2"
+    elseif keys.WPA then
+        ap.enc = "WPA"
+    elseif keys.WEP then
+        ap.enc = "WEP"
+    else
+        ap.enc = "OPN"
+    end
+    -- convert freq > channel
+    for ch, freq in ipairs(channels) do
+        if freq == tonumber(ap.freq) then
+            ap.ch = ch
+            break
+        end
+    end
+
+    return ap
+end
+--}}}
 --{{{ len
 function len(t)
     local count = 0
@@ -383,6 +424,13 @@ scanners.iwinfo = function(iface)
 end
 scanners.airport = function(iface)
     local res = split(read(airport_bin.." "..iface.." scan", "popen"), "\n")
+    table.remove(res, 1)
+    return res
+end
+scanners.wpacli = function(iface)
+    os.execute(wpacli_bin.." -i "..iface.." scan > /dev/null")
+    sleep(1)
+    local res = split(read(wpacli_bin.." -p "..wpa_dir.." -i "..iface.." scan_results", "popen"), "\n")
     table.remove(res, 1)
     return res
 end
@@ -572,6 +620,7 @@ for k, v in pairs(opts) do
     if k == "o" then obscure = true end
     if k == "b" then buff = tonumber(v) end
     if k == "p" then passive = "passive" end
+    if k == "S" then wpa_dir = v end
 end
 
 -- get environment
@@ -579,6 +628,7 @@ start = os.date("%s")
 iw_bin = chomp(read("which iw", "popen"))
 iwlist_bin = chomp(read("which iwlist", "popen"))
 airport_bin = chomp(read("which airport", "popen"))
+wpacli_bin = chomp(read("which wpa_cli", "popen"))
 local res, err = pcall(require, "socket")
 local res, err = pcall(require, "posix")
 
