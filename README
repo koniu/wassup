@@ -31,6 +31,7 @@ Usage: wassup.lua <options>
  -b <buffer>    number of scans in a cycle [1]
  -m <method>    scan method [iw, iwinfo, iwlist, wpacli or airport]
  -S <dir>       path to wpa_supplicant sockets [/var/run/wpa_supplicant]
+ -p             force passive scanning (affects 'iw' backend only)
 
  -k <c1,c2,...> show columns [bssid,ch,s,essid,sig,min,avg,max,loss,enc]
  -s <c1,c2,...> sort by columns [sig,essid]
