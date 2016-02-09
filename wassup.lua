@@ -649,6 +649,8 @@ if not method then
         method = "iw"
     elseif #iwlist_bin > 0 then
         method = "iwlist"
+    elseif #wpacli_bin > 0 then
+        method = "wpacli"
     else
         io.stderr:write("No scanning method available")
         os.exit(1)
