@@ -24,7 +24,7 @@ column_spacing = 1
 buff = 1
 wpa_dir = "/var/run/wpa_supplicant"
 
--- colors 
+-- colors
 colors = {
     def         = "none",
     sort        = "bold,white",
@@ -263,7 +263,7 @@ parsers.iwlist = function(res)
         elseif wpa then ap.enc = "WPA"
         else ap.enc = "WEP" end
     end
-    
+
     return ap
 end
 --}}}
@@ -378,7 +378,7 @@ function readable(filename)
     return false
 end
 --}}}
---{{{ read 
+--{{{ read
 function read(cmd, src)
     local f = io[src](cmd)
     local v = f:read("*a")
@@ -756,7 +756,7 @@ while state.iter < reps do
     if not (buff == 1 and delay == 0) and counter == 0 then
         last_result_num = 0
     end
---}}}    
+--}}}
 end
 --}}}
 -- vim: foldmethod=marker:filetype=lua:expandtab:shiftwidth=4:tabstop=4:softtabstop=4
